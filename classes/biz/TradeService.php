@@ -104,6 +104,7 @@ class TradeService
 		$info = json_decode($info_s->getExInfo($trading['symbol']),true);
 		
 		$min_lots_len = 9 - strlen($info['filters'][1]['minQty']*100000000);
+		$min_price_len = 9 - strlen($value['filters'][0]['minPrice']*100000000);
 		
 		//取得扣如手續費消耗後剩餘的數量 無條件捨去 100 - 0.1 = 99.9 取99做交易 剩餘0.9作為雜餘
 		$qty =  floor_dec($trading['qty'] - $trading['qty_fee'],$min_lots_len);
@@ -116,10 +117,32 @@ class TradeService
 		
 		$result = $this->newOrder($input);
 		
-		print_r($result);
+		//計算全部均價
+		$count_up = 0;
+		$count_qty = 0;
+		$count_fee = 0;
+		foreach($result['fills'] as $key => $value){
+			$count_up += $value['price'] * $value['qty'];
+			$count_qty += $value['qty'];
+			$count_fee += $value['commission'];
+		}
+		$close_price = number_format($count_up / $count_qty,$min_price_len);
 		
-		$result = $this->redis->hdel('BOT:TRADING',$trading['symbol']);
-		var_dump($result);
+		
+		
+		//計算獲利            獲利                                成本                    手續費 
+		$profit = (($close_price * $count_qty) - ($trading['price'] * $trading['qty']) ) - $count_fee;
+		
+		
+		//紀錄成交訊息
+		$trading['close_price'] = $close_price;
+		$trading['close_fee'] = $count_fee;
+		$trading['profit'] = $profit;
+		$trading['close_time'] = ceil($result['transactTime']/10000);
+		$trading['close_date'] = date('Y-m-d H:i:s' , ceil($result['transactTime']/10000));
+		
+		$this->redis->hdel('BOT:TRADING',$trading['symbol']);
+		$this->redis->lPush("BOT:TRADED",json_encode($trading));
 	}
 	
 	public function newOrder($query)
