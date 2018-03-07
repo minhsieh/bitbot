@@ -143,6 +143,10 @@ class TradeService
 		
 		$this->redis->hdel('BOT:TRADING',$trading['symbol']);
 		$this->redis->lPush("BOT:TRADED",json_encode($trading));
+		
+		
+		//通知Messenger
+		file_get_contents("http://pch.imin.tw/api/msg/send?msg=".urlencode('[\xF0\x9F\x94\xB0BITBOT\xF0\x9F\x94\xB0]-'.$trading['symbol']."\nprofit:$profit\nopen  :".$trading['price']."\nclose :$close_price"));
 	}
 	
 	public function newOrder($query)

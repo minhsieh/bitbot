@@ -18,6 +18,7 @@ function myErrorHandler($errno, $errstr, $errfile, $errline){
 	if (!(error_reporting() & $errno)) {
         return false;
     }
+    
     msg("[$errno]$errstr #$errfile [$errline]");
 }
 
