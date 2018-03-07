@@ -114,7 +114,7 @@ class BotService
 			
 			if(EntryService::checkRsiEntry($coin->getKline() , 14 , '< 20')){
 				if($free_bal - $cost < 0){
-					echo "[$symbol] \t Not Enough Balance!!!".PHP_EOL;
+					//echo "[$symbol] \t Not Enough Balance!!!".PHP_EOL;
 					continue;
 				}
 				if(!$this->debug){
@@ -127,7 +127,7 @@ class BotService
 			
 			if(EntryService::checkKdi($coin->getKline() , 14 )){
 				if($free_bal - $cost < 0){
-					echo "[$symbol] \t Not Enough Balance!!!".PHP_EOL;
+					//echo "[$symbol] \t Not Enough Balance!!!".PHP_EOL;
 					continue;
 				}
 				if(!$this->debug){
