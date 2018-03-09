@@ -14,7 +14,6 @@ class InfoService
 	{
 		$this->redis = new Redis;
 		$this->redis->connect(REDIS_HOST, REDIS_PORT);
-		$this->symbol = "BTC";
 	}
 	
 	public function __destruct()
@@ -22,57 +21,36 @@ class InfoService
 		$this->redis->close();
 	}
 	
-	public function setSymbol($symbol)
-	{
-		$this->symbol = $symbol;
-	}
 	
-	public function curlCoinList()
+	public function queryList()
 	{
 		$curl = new Curl;
 		$curl->get(BN_BASE_URL.'/api/v1/ticker/24hr');
 		if($curl->error){
 			throw new Exception('Curl Error: '.__function__.' ' . $curl->errorCode . ': ' . $curl->errorMessage. "===" . json_encode($curl->response));
 		}
-		
 		$result = $curl->response;
-		
-		//按照BTC成交量來進行排序
-		$volume = array();
-		foreach ($result as $key => $row)
-		{
-		    $volume[$key] = $row['quoteVolume'];
-		}
-		array_multisort($volume, SORT_DESC, $result);
-		
-		//過濾主購買貨幣
-		$new_result = [];
-		foreach($result as $one){
-			if(substr($one['symbol'] , -3 , 3)  == $this->symbol){
-				$new_result[] = $one;
-			}
-		}
-		
-		return  $new_result;
+		$curl->close();
+		return  $result;
 	}
 	
-	public function getCoinList()
+	public function updateList()
 	{
-		return $this->redis->hKeys("list:".$this->symbol);
-	}
-	
-	public function updateCoinList()
-	{
-		$this->redis->delete("list:".$this->symbol);
-		$hots = $this->curlCoinList();
+		$this->redis->delete(BOT_PREFIX.":LIST");
+		$lists = $this->queryList();
 		
-		foreach($hots as $key=> $value){
-			$this->redis->hset("list:".$this->symbol,str_pad($key,3,'0',STR_PAD_LEFT).":".$value['symbol'],json_encode($value));
+		foreach($lists as $key=> $value){
+			$this->redis->hset(BOT_PREFIX.":LIST",$value['symbol'],json_encode($value));
 		}
+		$this->redis->hSet(BOT_PREFIX.":BOT_INFO","list_updated",date('Y-m-d H:i:s'));
+		return $lists;
 	}
 	
+	public function getList()
+	{
+		return $this->redis->hKeys(BOT_PREFIX.":LIST");
+	}
 
-	
 	public function queryExInfo()
 	{
 		$curl = new Curl;
@@ -80,24 +58,28 @@ class InfoService
 		if($curl->error){
 			throw new Exception('Curl Error: '.__function__.' ' . $curl->errorCode . ': ' . $curl->errorMessage. "===" . json_encode($curl->response));
 		}
-		return $result = $curl->response;
+		$result = $curl->response;
+		$curl->close();
+		return $result;
 	}
 	
 	public function updateExInfo()
 	{
-		$this->redis->delete("list:ex_info");
-		$assets = $this->queryExchangeInfo();
+		$this->redis->delete(BOT_PREFIX.":EXINFO");
+		$assets = $this->queryExInfo();
+		
 		foreach($assets['symbols'] as $key => $value){
-			$this->redis->hSet("list:ex_info",$value['symbol'],json_encode($value));
+			$this->redis->hSet(BOT_PREFIX.":EXINFO",$value['symbol'],json_encode($value));
 		}
+		$this->redis->hSet(BOT_PREFIX.":BOT_INFO","exinfo_updated",date('Y-m-d H:i:s'));
 	}
 	
 	public function getExInfo($symbol = "")
 	{
 		if(empty($symbol)){
-			return $this->redis->hGetAll("list:ex_info");	
+			return $this->redis->hGetAll(BOT_PREFIX.":EXINFO");	
 		}else{
-			return $this->redis->hGet("list:ex_info",$symbol);
+			return $this->redis->hGet(BOT_PREFIX.":EXINFO",$symbol);
 		}
 	}
 	

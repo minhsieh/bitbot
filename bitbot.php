@@ -7,6 +7,7 @@ require_once 'autoload.php';
 require_once __DIR__.'/phpdaemon.php';
 
 use biz\BotService;
+use util\Console;
 
 
 function msg($msg) {
@@ -18,14 +19,14 @@ function myErrorHandler($errno, $errstr, $errfile, $errline){
 	if (!(error_reporting() & $errno)) {
         return false;
     }
-    
-    msg("[$errno]$errstr #$errfile [$errline]");
+    Console::log("[$errno]$errstr #$errfile [$errline]","light_red");
 }
 
 
 function handler($pno) {
-	msg("[BITBOT NO#$pno NOW WORKING!!!]");
+	Console::log("[BITBOT NO#$pno NOW WORKING!!!]",'light_blue');
 	$bot = new BotService;
+	//$bot->set_debug();
 	
 	for (;;) {
 		/**
@@ -41,7 +42,6 @@ function handler($pno) {
 				msg($ex);
 			}
 			sleep(30);
-			
 		}
 		
 		//出場者

@@ -11,7 +11,9 @@ use biz\InfoService;
 use biz\TradeService;
 use biz\EntryService;
 
-
+file_get_contents("http://pch.imin.tw/api/msg/send?msg=[\xF0\x9F\xA4\x96BITBOT\xF0\x9F\xA4\x96]".urlencode('-'));
+echo number_format('7.59E-6',8);
+exit;
 
 
 $redis = new Redis;

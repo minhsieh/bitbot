@@ -6,6 +6,7 @@ use Curl\Curl;
 use biz\InfoService;
 use \Exception;
 use \Redis;
+use model\Trade;
 
 class TradeService
 {
@@ -51,17 +52,24 @@ class TradeService
 		return $curl;
 	}
 	
-	public function buy($symbol , $qty , $atr ,$price_len , $entry_type)
+	public function countWaste($coin , $qty , $open_price)
 	{
-		$input['symbol'] = $symbol;
+		
+	}
+	
+	public function buy(Trade $trade)
+	{
+		$trade->check();
+		
+		$input['symbol'] = $trade->symbol;
 		$input['side'] = "BUY";
 		$input['type'] = "MARKET";
 		$input['newOrderRespType'] = "FULL";
-		$input['quantity'] = $qty;
+		$input['quantity'] = $trade->trade_qty;
 		
 		$result = $this->newOrder($input);
 		
-		print_r($result);
+		//print_r($result);
 		
 		//計算全部均價
 		$count_up = 0;
@@ -72,50 +80,49 @@ class TradeService
 			$count_qty += $value['qty'];
 			$count_fee += $value['commission'];
 		}
-		$price = number_format($count_up / $count_qty,$price_len);
+		$trade->exc_b_price = number_format($count_up / $count_qty,$trade->price_len);
+		$trade->exc_b_qty = $count_qty;
+		$trade->exc_b_fee = $count_fee;
+		$trade->order_id = $result['orderId'];
+		if(!empty($trade->stop_price)){
+			$trade->sl = $trade->stop_price;
+		}else{
+			$trade->sl = number_format($exc_price * 0.5,$trade->price_len);//保證停損係數
+		}
 		
-		$record = [
-			'symbol' => $result['symbol'],
-			'price' => $price,
-			'order_id' => $result['orderId'],
-			'qty' => $result['executedQty'],
-			'qty_fee' => $count_fee,
-			'atr' => number_format($atr,$price_len),
-			'sl' => number_format($price - 2 * $atr,$price_len),
-			'time' => ceil($result['transactTime']/10000),
-			'date' => date('Y-m-d H:i:s',ceil($result['transactTime']/10000)),
-			'entry_type' => $entry_type,
-			'profit' => 0,
-		];
+		$trade->time = ceil($result['transactTime']/1000);
+		$trade->date = date('Y-m-d H:i:s',ceil($result['transactTime']/1000));
 		
-		$this->redis->hSet("BOT:TRADING",$symbol,json_encode($record));
+		$this->redis->hSet("BOT:TRADING",$trade->symbol,json_encode($trade));
 		
-		return ['result' => 'success' , 'detail' => $result];
+		return $trade;
 	}
 	
-	public function sell($symbol)
+	public function sell(Trade $trade)
 	{
-		$trading = $this->redis->hGet("BOT:TRADING" , $symbol);
-		if(empty($trading)) throw new Exception('No holding trade to sell.');
+		//$trading = $this->redis->hGet("BOT:TRADING" , $symbol);
+		//if(empty($trading)) throw new Exception('No holding trade to sell.');
 		
-		$trading = json_decode($trading,true);
+		//$trading = json_decode($trading,true);
 		
-		$info_s = new InfoService;
-		$info = json_decode($info_s->getExInfo($trading['symbol']),true);
+		//$info_s = new InfoService;
+		//$info = json_decode($info_s->getExInfo($trading['symbol']),true);
 		
-		$min_lots_len = 9 - strlen($info['filters'][1]['minQty']*100000000);
-		$min_price_len = 9 - strlen($value['filters'][0]['minPrice']*100000000);
+		//$min_lots_len = 9 - strlen($info['filters'][1]['minQty']*100000000);
+		//$min_price_len = 9 - strlen($info['filters'][0]['minPrice']*100000000);
 		
 		//取得扣如手續費消耗後剩餘的數量 無條件捨去 100 - 0.1 = 99.9 取99做交易 剩餘0.9作為雜餘
-		$qty =  floor_dec($trading['qty'] - $trading['qty_fee'],$min_lots_len);
+		//$qty =  floor_dec($trading['qty'] - $trading['qty_fee'],$min_lots_len);
 		
-		$input['symbol'] = $trading['symbol'];
+		$input['symbol'] = $trade->symbol;
 		$input['side'] = "SELL";
 		$input['type'] = "MARKET";
 		$input['newOrderRespType'] = "FULL";
-		$input['quantity'] = $qty;
+		$input['quantity'] = $trade->qty;
 		
 		$result = $this->newOrder($input);
+		
+		//print_r($result);
 		
 		//計算全部均價
 		$count_up = 0;
@@ -126,27 +133,29 @@ class TradeService
 			$count_qty += $value['qty'];
 			$count_fee += $value['commission'];
 		}
+		$trade->exc_s_price = number_format($count_up / $count_qty,$trade->price_len);
+		$trade->exc_s_qty = $count_qty;
+		$trade->exc_s_fee = $count_fee;
 		$close_price = number_format($count_up / $count_qty,$min_price_len);
 		
-		
-		
 		//計算獲利            獲利                                成本                    手續費 
-		$profit = (($close_price * $count_qty) - ($trading['price'] * $trading['qty']) ) - $count_fee;
+		$trade->close_profit = (($trade->exc_s_price * $trade->exc_s_qty) - ($trade->exc_b_price * $trade->exc_b_qty) - $trade->exc_s_fee);
+		$trade->close_time = ceil($result['transactTime']/1000);
+		$trade->close_date = date('Y-m-d H:i:s' , ceil($result['transactTime']/1000));
 		
-		
-		//紀錄成交訊息
-		$trading['close_price'] = $close_price;
-		$trading['close_fee'] = $count_fee;
-		$trading['profit'] = $profit;
-		$trading['close_time'] = ceil($result['transactTime']/10000);
-		$trading['close_date'] = date('Y-m-d H:i:s' , ceil($result['transactTime']/10000));
-		
-		$this->redis->hdel('BOT:TRADING',$trading['symbol']);
-		$this->redis->lPush("BOT:TRADED",json_encode($trading));
-		
+		$this->redis->hdel('BOT:TRADING',$trade->symbol);
+		$this->redis->lPush("BOT:TRADED",json_encode($trade));
 		
 		//通知Messenger
-		file_get_contents("http://pch.imin.tw/api/msg/send?msg=".urlencode('[\xF0\x9F\x94\xB0BITBOT\xF0\x9F\x94\xB0]-'.$trading['symbol']."\nprofit:$profit\nopen  :".$trading['price']."\nclose :$close_price"));
+		if($trade->close_profit < 0){
+			$icon = "\xF0\x9F\x94\xB4";
+			file_get_contents("http://pch.imin.tw/api/msg/send?msg=[\xF0\x9F\xA4\x96BITBOT\xF0\x9F\xA4\x96]\xF0\x9F\x94\xB4".urlencode($trade->symbol."\nprofit:".$trade->close_profit."\nopen  :".$trade->exc_b_price."\nclose :".$trade->exc_s_price));
+		}else{
+			$icon = "\xF0\x9F\x94\xB5";
+			file_get_contents("http://pch.imin.tw/api/msg/send?msg=[\xF0\x9F\xA4\x96BITBOT\xF0\x9F\xA4\x96]\xF0\x9F\x94\xB5".urlencode($trade->symbol."\nprofit:".$trade->close_profit."\nopen  :".$trade->exc_b_price."\nclose :".$trade->exc_s_price));
+		}
+		
+		
 	}
 	
 	public function newOrder($query)
@@ -155,7 +164,7 @@ class TradeService
 		$query = $this->getTimestamp($query);
 		$query['signature'] = $this->getSignature($query);
 		
-		print_r($query);
+		//print_r($query);
 		$curl->post(BN_BASE_URL.'/api/v3/order',$query);
 		if($curl->error){
 			throw new Exception('Curl Error: '.__function__.' ' . $curl->errorCode . ': ' . $curl->errorMessage. "===" . json_encode($curl->response));
@@ -253,7 +262,7 @@ class TradeService
 		return $result;
 	}
 	
-	public function sellAll($query)
+	public function messengerFormat($symbol , $buy , $sell , $profit)
 	{
 		
 	}

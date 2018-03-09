@@ -13,10 +13,21 @@ class Coin extends ModelBase
 	protected $klines;
 	protected $atrs;
 	
-	public function __construct($data = [])
+	public function __construct($symbol)
 	{
 		$this->redis = new Redis;
 		$this->redis->connect(REDIS_HOST, REDIS_PORT);
+		
+		$data_list = $this->redis->hGet(BOT_PREFIX.":LIST" , $symbol );
+		$data_info = $this->redis->hGet(BOT_PREFIX.":EXINFO" , $symbol );
+		
+		if($data_list == false){
+			throw new Exception("Not find symbol: $symbol in ".BOT_PREFIX.":LIST");
+		}elseif($data_list == false){
+			throw new Exception("Not find symbol: $symbol in ".BOT_PREFIX.":LIST");
+		}
+		
+		$data = array_merge( json_decode( $data_list , true) , json_decode( $data_info , true ));
 		parent::__construct($data);
 	}
 	
@@ -25,25 +36,7 @@ class Coin extends ModelBase
 		$this->redis->close();
 	}
 	
-	static public function find($symbol, $list = "BTC")
-	{
-		$redis = new Redis;
-		$redis->connect(REDIS_HOST, REDIS_PORT);
-		$it = NULL;
-		$redis->setOption(Redis::OPT_SCAN, Redis::SCAN_RETRY);
-		while($arr_keys = $redis->hScan('list:'.$list, $it)) {
-		    foreach($arr_keys as $str_field => $str_value) {
-		    	if(strpos($str_field,$symbol) != false){
-		    		$redis->close();
-		    		return new Coin(json_decode($str_value,true));
-		    	}
-		    }
-		}
-		$redis->close();
-		throw new Exception('not find symbol');
-	}
-	
-	public function getKline($interval = "1m",$limit = 100)
+	public function getKline($interval = "15m",$limit = 100)
 	{
 		if(empty($this->data['symbol'])) throw new Exception('no symbol assigned.');
 		if(!empty($this->klines)) return $this->klines;
@@ -59,7 +52,6 @@ class Coin extends ModelBase
 		$this->klines = $curl->response;
 		$result = $curl->response;
 		$curl->close();
-		unset($curl);
 		return $result;
 	}
 	
@@ -75,13 +67,19 @@ class Coin extends ModelBase
 		}
 		$result = $curl->response;
 		$curl->close();
-		unset($curl);
+		$this->data['bid'] = $result['bids'][0][0];
+		$this->data['ask'] = $result['asks'][0][0];
 		return ['bid' => $result['bids'][0][0] , 'ask' => $result['asks'][0][0] ];
 	}
 	
-	public function getExInfo()
+	public function getPriceLen()
 	{
-		return json_decode($this->redis->hget('list:ex_info',$this->data['symbol']),true);
+		return ( 9 - strlen($this->data['filters'][0]['minPrice']*100000000));
+	}
+	
+	public function getLotLen()
+	{
+		return ( 9 - strlen($this->data['filters'][1]['minQty']*100000000));
 	}
 	
 	public function getAtrs($period = 14)
@@ -104,10 +102,52 @@ class Coin extends ModelBase
 		if(empty($this->atrs)) $this->getAtrs($period);
 		return end($this->atrs);
 	}
+
+	public function fee_qty($qty,$fee_p = 0.001)
+	{
+		$fee_qty = $qty * $fee_p;
+		return $fee_qty = ceil_dec($fee_qty , $this->getLotLen());
+	}
+	
+	public function trade_qty($qty,$fee_p = 0.001)
+	{
+		$fee_qty = $this->fee_qty($qty,$fee_p);
+		return $fee_qty + $qty;
+	}
+	
+	public function be_price($qty , $open_price)
+	{
+		$trade_qty = $this->trade_qty($qty);
+		
+		$close_price = ($trade_qty * $open_price) / ( ( 1 - 0.001 ) * $qty );
+		
+		return number_format($close_price,8);
+	}
+	
+	public function stop_price($qty , $open_price , $sl)
+	{
+		
+	}
+	
+	public function waste()
+	{
+		
+	}
 	
 	public function isTrading()
 	{
 		return $this->redis->hExists("BOT:TRADING",$this->data['symbol']);
+	}
+	
+	public function canTrade()
+	{
+		if($this->data['filters'][2]['minNotional'] > 0.001){
+			return false;
+		}
+		if($this->data['status'] != "TRADING"){
+			return false;
+		}
+		return true;
 	}
 
 	
