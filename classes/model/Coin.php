@@ -100,7 +100,8 @@ class Coin extends ModelBase
 	public function getAtr($period = 14)
 	{
 		if(empty($this->atrs)) $this->getAtrs($period);
-		return end($this->atrs);
+		if(!is_array($this->atrs)) return 0;
+		return array_pop($this->atrs);
 	}
 
 	public function fee_qty($qty,$fee_p = 0.001)

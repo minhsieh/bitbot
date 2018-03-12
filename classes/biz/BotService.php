@@ -74,6 +74,10 @@ class BotService
 			//先用ATR和可"可承受風險金額"來計算要想要的總數 qty
 			
 			$klines = $coin->getKline("15m",100);
+			if(count($klines) < 14){
+				continue;
+			}
+			
 			$atr = $coin->getAtr();
 			
 			$atr = ceil_dec(($atr/100000000) , $coin->getPriceLen() );
@@ -124,29 +128,40 @@ class BotService
 				echo $trade->toCli().PHP_EOL;
 			}
 			
-			
-			if($free_bal - $trade->cost < 0){
-				continue;
-			}
-			
 			$watching_count ++;
 			
 			
-			if(EntryService::checkRsiEntry($coin->getKline() , 14 , '< 20')){
-				$trade->entry_type = "RSI";
-				if(!$this->debug){
-					$trade = $trade_s->buy($trade);
-				}
-				echo Console::log("[$symbol] \t RSI ENTRY SIGNAL!!!","light_cyan");
+			if($free_bal - $trade->cost <= 0){
 				continue;
 			}
 			
-			if(EntryService::checkKdi($coin->getKline() , 14 )){
-				$trade->entry_type = "KDI";
+			if(EntryService::checkRsiEntry($coin->getKline() , 14 , '< 20')){
+				$trade->entry_type = "RSI";
+				echo $trade->toCli().PHP_EOL;
+				echo Console::log("[$symbol] \t RSI ENTRY SIGNAL!!!","light_cyan");
 				if(!$this->debug){
 					$trade = $trade_s->buy($trade);
 				}
-				echo Console::log("[$symbol] \t KDI ENTRY SIGNAL!!!","light_cyan");
+				continue;
+			}
+			
+			if(EntryService::checkStoch($coin->getKline() , 14 )){
+				$trade->entry_type = "STOCH";
+				echo $trade->toCli().PHP_EOL;
+				echo Console::log("[$symbol] \t STOCH ENTRY SIGNAL!!!","light_cyan");
+				if(!$this->debug){
+					$trade = $trade_s->buy($trade);
+				}
+				continue;
+			}
+			
+			if(EntryService::checkStochRsi($coin->getKline() , 14 )){
+				$trade->entry_type = "STOCH_RSI";
+				echo $trade->toCli().PHP_EOL;
+				echo Console::log("[$symbol] \t STOCH_RSI ENTRY SIGNAL!!!","light_cyan");
+				if(!$this->debug){
+					$trade = $trade_s->buy($trade);
+				}
 				continue;
 			}
 
@@ -158,8 +173,8 @@ class BotService
 	
 	public function loopTrading()
 	{
-		$info = new InfoService;
-		$trade_s = new TradeService;
+		$info = $this->info;
+		$trade_s = $this->trade;
 		
 		$tradings = $this->redis->hGetAll("BOT:TRADING");
 		
@@ -172,6 +187,8 @@ class BotService
 			$askbid = $coin->getAskBid();
 			$trade->bid = $askbid['bid'];
 			$trade->ask = $askbid['ask'];
+			
+			$trade->profit_btc = $trade->getProfitBtc($trade->bid);
 
 			//檢查是否移動止損 (ATR)
 			if( !empty( $trade->atr_multi ) && !empty($trade->atr) && !empty($trade->sl ) ){
@@ -187,12 +204,23 @@ class BotService
 				if(!$this->debug){
 					$trade_s->sell($trade);	
 				}
-				echo Console::log("[".$trade->symbol."]\tHIT STOP LOSS !!! sl: ".$trade->sl." profit: ".$trade->profit,"light_red");
+				echo Console::log("[".$trade->symbol."]\tHIT STOP LOSS !!! sl: ".$trade->sl." profit: ".$trade->profit_btc,"light_red");
 				continue;
 			}
 			
-			$trade->profit_btc = $trade->getProfitBtc($trade->bid);
+			
 			$this->redis->hSet("BOT:TRADING" , $trade->symbol , json_encode($trade));
 		}
+	}
+	
+	public function loopUpdate()
+	{
+		$info = $this->info;
+		$trade_s = $this->trade;
+		
+		$trade_s->updateAccount();
+		
+		$info->updateList();
+		$info->updateExInfo();
 	}
 }

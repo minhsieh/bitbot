@@ -15,7 +15,6 @@ class TradeService
 	{
 		$this->redis = new Redis;
 		$this->redis->connect(REDIS_HOST, REDIS_PORT);
-		//$this->redis->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
 	}
 	
 	public function __destruct()
@@ -52,11 +51,6 @@ class TradeService
 		return $curl;
 	}
 	
-	public function countWaste($coin , $qty , $open_price)
-	{
-		
-	}
-	
 	public function buy(Trade $trade)
 	{
 		$trade->check();
@@ -69,8 +63,6 @@ class TradeService
 		
 		$result = $this->newOrder($input);
 		
-		//print_r($result);
-		
 		//計算全部均價
 		$count_up = 0;
 		$count_qty = 0;
@@ -82,7 +74,7 @@ class TradeService
 		}
 		$trade->exc_b_price = number_format($count_up / $count_qty,$trade->price_len);
 		$trade->exc_b_qty = $count_qty;
-		$trade->exc_b_fee = $count_fee;
+		$trade->exc_b_fee = number_format($count_fee , $trade->lot_len);
 		$trade->order_id = $result['orderId'];
 		if(!empty($trade->stop_price)){
 			$trade->sl = $trade->stop_price;
@@ -93,27 +85,13 @@ class TradeService
 		$trade->time = ceil($result['transactTime']/1000);
 		$trade->date = date('Y-m-d H:i:s',ceil($result['transactTime']/1000));
 		
-		$this->redis->hSet("BOT:TRADING",$trade->symbol,json_encode($trade));
+		$this->redis->hSet(BOT_PREFIX.":TRADING",$trade->symbol,json_encode($trade));
 		
 		return $trade;
 	}
 	
 	public function sell(Trade $trade)
 	{
-		//$trading = $this->redis->hGet("BOT:TRADING" , $symbol);
-		//if(empty($trading)) throw new Exception('No holding trade to sell.');
-		
-		//$trading = json_decode($trading,true);
-		
-		//$info_s = new InfoService;
-		//$info = json_decode($info_s->getExInfo($trading['symbol']),true);
-		
-		//$min_lots_len = 9 - strlen($info['filters'][1]['minQty']*100000000);
-		//$min_price_len = 9 - strlen($info['filters'][0]['minPrice']*100000000);
-		
-		//取得扣如手續費消耗後剩餘的數量 無條件捨去 100 - 0.1 = 99.9 取99做交易 剩餘0.9作為雜餘
-		//$qty =  floor_dec($trading['qty'] - $trading['qty_fee'],$min_lots_len);
-		
 		$input['symbol'] = $trade->symbol;
 		$input['side'] = "SELL";
 		$input['type'] = "MARKET";
@@ -121,8 +99,6 @@ class TradeService
 		$input['quantity'] = $trade->qty;
 		
 		$result = $this->newOrder($input);
-		
-		//print_r($result);
 		
 		//計算全部均價
 		$count_up = 0;
@@ -135,16 +111,16 @@ class TradeService
 		}
 		$trade->exc_s_price = number_format($count_up / $count_qty,$trade->price_len);
 		$trade->exc_s_qty = $count_qty;
-		$trade->exc_s_fee = $count_fee;
-		$close_price = number_format($count_up / $count_qty,$min_price_len);
+		$trade->exc_s_fee = number_format($count_fee , $trade->lot_len);
+		$close_price = number_format($count_up / $count_qty,$trade->price_len);
 		
 		//計算獲利            獲利                                成本                    手續費 
-		$trade->close_profit = (($trade->exc_s_price * $trade->exc_s_qty) - ($trade->exc_b_price * $trade->exc_b_qty) - $trade->exc_s_fee);
+		$trade->close_profit = number_format((($trade->exc_s_price * $trade->exc_s_qty) - ($trade->exc_b_price * $trade->exc_b_qty) - $trade->exc_s_fee),8);
 		$trade->close_time = ceil($result['transactTime']/1000);
 		$trade->close_date = date('Y-m-d H:i:s' , ceil($result['transactTime']/1000));
 		
-		$this->redis->hdel('BOT:TRADING',$trade->symbol);
-		$this->redis->lPush("BOT:TRADED",json_encode($trade));
+		$this->redis->hdel(BOT_PREFIX.':TRADING',$trade->symbol);
+		$this->redis->lPush(BOT_PREFIX.":TRADED",json_encode($trade));
 		
 		//通知Messenger
 		if($trade->close_profit < 0){
@@ -274,15 +250,22 @@ class TradeService
 		
 		foreach($result['balances'] as $one){
 			if($one['asset'] == "BTC"){
-				$this->redis->hSet("BOT:ACCOUNT","btc_free",$one['free']);
-				$this->redis->hSet("BOT:ACCOUNT","btc_locked",$one['locked']);
+				$this->redis->hSet(BOT_PREFIX.":ACCOUNT","btc_free",$one['free']);
+				$this->redis->hSet(BOT_PREFIX.":ACCOUNT","btc_locked",$one['locked']);
+				$this->redis->hSet(BOT_PREFIX.":BOT_INFO","account_updated",date('Y-m-d H:i:s'));
 			}
 		}
 	}
 	
 	public function initBalance($init_balance)
 	{
-		$this->redis->hSet("BOT:ACCOUNT","init_balance",$init_balance);
+		$this->redis->hSet(BOT_PREFIX.":ACCOUNT","init_balance",$init_balance);
+	}
+	
+	#Emergency Close All Trades
+	public function closeAll()
+	{
+		
 	}
 
 }

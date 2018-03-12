@@ -61,6 +61,26 @@ class Console {
             $newline          = true;
         }
         $str = $newline ? $str . self::$EOF : $str;
+        
+        $str = "[".date("Y-m-d H:i:s")."] ".$str;
+
+        echo self::$color($str, $background_color);
+    }
+    
+    
+    public static function echo($str = '', $color = 'normal', $newline = true, $background_color = null)
+    {
+        if( is_bool($color) )
+        {
+            $newline = $color;
+            $color   = 'normal';
+        }
+        elseif( is_string($color) && is_string($newline) )
+        {
+            $background_color = $newline;
+            $newline          = true;
+        }
+        $str = $newline ? $str . self::$EOF : $str;
 
         echo self::$color($str, $background_color);
     }

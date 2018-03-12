@@ -20,6 +20,59 @@ class EntryService
 		return self::checkOperator($formula,end($rsis));
 	}
 	
+	static public function checkStoch($klines , $period = 14)
+	{
+		$highs = array_column($klines,2);
+		$lows = array_column($klines,3);
+		$closes = array_column($klines,4);
+		
+		$stoch = trader_stoch( $highs , $lows , $closes , 14, 3);
+		
+		$slowk = $stoch[0];
+        $slowd = $stoch[1];
+        $slowk = array_pop($slowk); #$slowk[count($slowk) - 1];
+        $slowd = array_pop($slowd); #$slowd[count($slowd) - 1];
+        #echo "\n(SLOWK: $slowk SLOWD: $slowd)";
+        # If either the slowk or slowd are less than 10, the pair is
+        # 'oversold,' a long position is opened
+        if ($slowk < 10 || $slowd < 10) {
+            return 1;
+        # If either the slowk or slowd are larger than 90, the pair is
+        # 'overbought' and the position is closed.
+        }
+        // elseif ($slowk > 90 || $slowd > 90) {
+        //     return -1;
+        // }
+        else {
+            return 0;
+        }
+	}
+	
+	static public function checkStochRsi($klines , $period = 14 , $trend_period = 5)
+	{
+		$closes = array_column($klines,4);
+		$stochrsi_trend = $stochrsi = trader_stochrsi($closes , $period);
+        $stochrsi = array_pop($stochrsi);
+        /**
+         *  Lets determine if there is a trend over period 5
+         */
+        $trending = 0;
+        $parts = [];
+        for($a=0; $a<$trend_period; $a++) {
+            $parts[] = array_pop($stochrsi_trend);
+        }
+        foreach ($parts as $part) {
+            $trending += ($part >= 0.5 ? 1 : -1);
+        }
+        if ($trending == 5){
+            return true;
+        }
+        // if ($trending == -5){
+        //     return -1;
+        // }
+        return false;
+	}
+	
 	static public function checkKdi($klines , $period = 14,$formula = "")
 	{
 		$count = count($klines);

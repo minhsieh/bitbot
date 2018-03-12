@@ -49,7 +49,7 @@ class Trade extends ModelBase
 		if(!empty($this->data['atr']) && !empty($this->data['atr_multi'])){
 			$this->data['stop_price'] = number_format(ceil_dec($this->data['be_price'] - $this->data['atr_multi'] * $this->data['atr'] ,$this->data['price_len']),8);
 			$this->data['loss_p'] = round( ($this->data['buy_price'] - $this->data['stop_price']) / $this->data['buy_price'] * 100,3);
-			if($this->data['waste_p'] != 0){
+			if($this->data['loss_p'] != 0){
 				$this->data['waste_loss_p'] = round($this->data['waste_p'] / $this->data['loss_p'] * 100 , 3);
 			}else{
 				$this->data['waste_loss_p'] = 0;

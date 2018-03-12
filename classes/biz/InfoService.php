@@ -36,7 +36,7 @@ class InfoService
 	
 	public function updateList()
 	{
-		$this->redis->delete(BOT_PREFIX.":LIST");
+		//$this->redis->delete(BOT_PREFIX.":LIST");
 		$lists = $this->queryList();
 		
 		foreach($lists as $key=> $value){
@@ -65,7 +65,7 @@ class InfoService
 	
 	public function updateExInfo()
 	{
-		$this->redis->delete(BOT_PREFIX.":EXINFO");
+		//$this->redis->delete(BOT_PREFIX.":EXINFO");
 		$assets = $this->queryExInfo();
 		
 		foreach($assets['symbols'] as $key => $value){

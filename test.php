@@ -36,3 +36,9 @@ function test_entry()
 	$bot->set_debug();
 	$bot->loopEntry();
 }
+
+function test_account()
+{
+	$trade_s = new biz\TradeService;
+	print_r($trade_s->queryAccount());
+}

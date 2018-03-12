@@ -39,7 +39,7 @@ function handler($pno) {
 			try{
 				$bot->loopEntry();
 			}catch(Exception $ex){
-				msg($ex);
+				Console::log($ex,"red");
 			}
 			sleep(30);
 		}
@@ -49,15 +49,24 @@ function handler($pno) {
 			try{
 				$bot->loopTrading();
 			}catch(Exception $ex){
-				msg($ex);
+				Console::log($ex,"red");
 			}
 			sleep(5);
+		}
+		
+		elseif($pno == 3){
+			try{
+				$bot->loopUpdate();
+			}catch(Exception $ex){
+				Console::log($ex,"red");
+			}
+			sleep(30*60);
 		}
 	}
 }
 
 $obj = new PHPDaemon();
-$obj->setProcessNum(2);
+$obj->setProcessNum(3);
 $obj->setHandler("handler");
 $obj->run();
 
