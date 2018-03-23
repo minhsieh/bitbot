@@ -20,7 +20,7 @@ class BotService
 	public function __construct()
 	{
 		$this->redis = new Redis();
-		$this->redis->connect('127.0.0.1', 6379);
+		$this->redis->connect(REDIS_HOST, REDIS_PORT);
 		$this->info = new InfoService;
 		$this->trade = new TradeService;
 	}
@@ -108,7 +108,7 @@ class BotService
 				continue;
 			}
 
-			$free_bal = $this->redis->hGet("BOT:ACCOUNT","btc_free");
+			$free_bal = $this->redis->hGet(BOT_PREFIX.":ACCOUNT","btc_free");
 
 			if(($trade->qty * $trade->stop_price ) <= $minNational){
 				continue;
@@ -176,7 +176,7 @@ class BotService
 		$info = $this->info;
 		$trade_s = $this->trade;
 		
-		$tradings = $this->redis->hGetAll("BOT:TRADING");
+		$tradings = $this->redis->hGetAll(BOT_PREFIX.":TRADING");
 		
 		foreach($tradings as $key => $value){
 			//$value = json_decode($value , true);
@@ -209,7 +209,7 @@ class BotService
 			}
 			
 			
-			$this->redis->hSet("BOT:TRADING" , $trade->symbol , json_encode($trade));
+			$this->redis->hSet(BOT_PREFIX.":TRADING" , $trade->symbol , json_encode($trade));
 		}
 	}
 	

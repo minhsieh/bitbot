@@ -125,16 +125,6 @@ class Coin extends ModelBase
 		return number_format($close_price,8);
 	}
 	
-	public function stop_price($qty , $open_price , $sl)
-	{
-		
-	}
-	
-	public function waste()
-	{
-		
-	}
-	
 	public function isTrading()
 	{
 		return $this->redis->hExists("BOT:TRADING",$this->data['symbol']);

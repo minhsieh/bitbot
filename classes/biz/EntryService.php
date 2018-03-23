@@ -30,20 +30,19 @@ class EntryService
 		
 		$slowk = $stoch[0];
         $slowd = $stoch[1];
-        $slowk = array_pop($slowk); #$slowk[count($slowk) - 1];
-        $slowd = array_pop($slowd); #$slowd[count($slowd) - 1];
+        $slowk_b0 = array_pop($slowk); #$slowk[count($slowk) - 1];
+        $slowd_b0 = array_pop($slowd); #$slowd[count($slowd) - 1];
+        
+        $slowk_b1 = array_pop($slowk);
+        $slowd_b1 = array_pop($slowd);
         #echo "\n(SLOWK: $slowk SLOWD: $slowd)";
         # If either the slowk or slowd are less than 10, the pair is
         # 'oversold,' a long position is opened
-        if ($slowk < 10 || $slowd < 10) {
+        if ($slowk_b0 > 20 && $slowk_b1 < 20) {
             return 1;
-        # If either the slowk or slowd are larger than 90, the pair is
-        # 'overbought' and the position is closed.
-        }
-        // elseif ($slowk > 90 || $slowd > 90) {
-        //     return -1;
-        // }
-        else {
+        }elseif($slowd_b0 > 20 && $slowd_b1 < 20){
+        	return 1;
+        }else {
             return 0;
         }
 	}

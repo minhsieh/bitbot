@@ -122,15 +122,6 @@ class TradeService
 		$this->redis->hdel(BOT_PREFIX.':TRADING',$trade->symbol);
 		$this->redis->lPush(BOT_PREFIX.":TRADED",json_encode($trade));
 		
-		//通知Messenger
-		if($trade->close_profit < 0){
-			$icon = "\xF0\x9F\x94\xB4";
-			file_get_contents("http://pch.imin.tw/api/msg/send?msg=[\xF0\x9F\xA4\x96BITBOT\xF0\x9F\xA4\x96]\xF0\x9F\x94\xB4".urlencode($trade->symbol."\nprofit:".$trade->close_profit."\nopen  :".$trade->exc_b_price."\nclose :".$trade->exc_s_price));
-		}else{
-			$icon = "\xF0\x9F\x94\xB5";
-			file_get_contents("http://pch.imin.tw/api/msg/send?msg=[\xF0\x9F\xA4\x96BITBOT\xF0\x9F\xA4\x96]\xF0\x9F\x94\xB5".urlencode($trade->symbol."\nprofit:".$trade->close_profit."\nopen  :".$trade->exc_b_price."\nclose :".$trade->exc_s_price));
-		}
-		
 		
 	}
 	
