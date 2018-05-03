@@ -15,7 +15,7 @@ use \Redis;
 class BotService
 {
 	protected $debug = false;
-	protected $atr_multi = 4;
+	protected $atr_multi = 6;
 	
 	public function __construct()
 	{
@@ -69,11 +69,16 @@ class BotService
 				continue;
 			}
 			
+			//確認是否CD中
+			if($this->redis->exists(BOT_PREFIX.":CD:".$symbol)){
+				continue;
+			}
+			
 			$trade = new Trade();
 			
 			//先用ATR和可"可承受風險金額"來計算要想要的總數 qty
 			
-			$klines = $coin->getKline("15m",100);
+			$klines = $coin->getKline("30m",100);
 			if(count($klines) < 14){
 				continue;
 			}
@@ -89,7 +94,7 @@ class BotService
 			$trade->setCoin($coin);
 			
 			//0.00008
-			$balance = 0.0001 * 100000000;
+			$balance = 0.0002 * 100000000;
 			$qty = ceil_dec($balance/($this->atr_multi*100000000*$atr),$coin->getLotLen() );
 			
 			$trade->qty = $qty;
@@ -202,8 +207,13 @@ class BotService
 			//檢查是否止損
 			if($trade->bid <= $trade->sl){
 				if(!$this->debug){
-					$trade_s->sell($trade);	
+					try{
+						$trade_s->sell($trade);
+					}catch(Exception $ex){
+						Console::log($ex,'red');
+					}
 				}
+				$this->redis->setex(BOT_PREFIX.":CD:".$trade->symbol,1800,date("Y-m-d H:i:s"));
 				echo Console::log("[".$trade->symbol."]\tHIT STOP LOSS !!! sl: ".$trade->sl." profit: ".$trade->profit_btc,"light_red");
 				continue;
 			}
@@ -218,9 +228,36 @@ class BotService
 		$info = $this->info;
 		$trade_s = $this->trade;
 		
+		$account = $trade_s->queryAccount();
 		$trade_s->updateAccount();
 		
 		$info->updateList();
 		$info->updateExInfo();
+		
+		
+		foreach($account['balances'] as $one){
+			if($one['free'] > 0 || $one['locked'] > 0){
+				$this->redis->hSet(BOT_PREFIX.":BALANCE",$one['asset'],$one['free']);
+			}else{
+				if($this->redis->hExists(BOT_PREFIX.":BALANCE" , $one['asset'])){
+					$this->redis->hDel(BOT_PREFIX.":BALANCE",$one['asset']);
+				}
+			}
+		}
+	}
+	
+	public function closeAll()
+	{
+		$info = $this->info;
+		$trade_s = $this->trade;
+		
+		$tradings = $this->redis->hGetAll(BOT_PREFIX.":TRADING");
+		
+		foreach($tradings as $key => $value){
+			//$value = json_decode($value , true);
+			$trade = new Trade(json_decode($value , true));
+			$coin = new Coin($key);
+			$trade_s->sell($trade);	
+		}
 	}
 }

@@ -9,12 +9,14 @@ require_once __DIR__.'/phpdaemon.php';
 use biz\BotService;
 use util\Console;
 
+Console::log("[BITBOT NOW START!!!]",'light_blue');
 
 function msg($msg) {
 	echo "[".date('Y-m-d H:i:s')."] : ".$msg."\n";
 }
 
 set_error_handler("myErrorHandler");
+
 function myErrorHandler($errno, $errstr, $errfile, $errline){
 	if (!(error_reporting() & $errno)) {
         return false;
@@ -24,7 +26,7 @@ function myErrorHandler($errno, $errstr, $errfile, $errline){
 
 
 function handler($pno) {
-	Console::log("[BITBOT NO#$pno NOW WORKING!!!]",'light_blue');
+	
 	$bot = new BotService;
 	//$bot->set_debug();
 	

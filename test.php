@@ -42,3 +42,10 @@ function test_account()
 	$trade_s = new biz\TradeService;
 	print_r($trade_s->queryAccount());
 }
+
+
+function sell_all()
+{
+	$trade_s = new biz\BotService;
+	$trade_s->closeAll();
+}

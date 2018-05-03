@@ -65,7 +65,11 @@ foreach($tradeds as $key => $one){
   				
   					<div class="card-header">
   						<?php echo $trade->symbol;?><span style="float:right;"><?php echo round($trade->profit_btc/$trade->cost * 100, 2)?>%</span>
-  						
+  						<?php
+  						if($trade->sl >= $trade->buy_price){
+  							echo '<span class="badge badge-pill badge-info">Locked Safe</span>';
+  						}
+  						?>
   					</div>
   					<div class="card-body">
   						<ul>

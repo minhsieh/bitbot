@@ -132,10 +132,10 @@ class Coin extends ModelBase
 	
 	public function canTrade()
 	{
-		if($this->data['filters'][2]['minNotional'] > 0.001){
+		if(isset($this->data['filters'][2]['minNotional']) && $this->data['filters'][2]['minNotional'] > 0.001){
 			return false;
 		}
-		if($this->data['status'] != "TRADING"){
+		if(isset($this->data['status']) &&$this->data['status'] != "TRADING"){
 			return false;
 		}
 		return true;

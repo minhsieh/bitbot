@@ -48,6 +48,8 @@ class TradeService
 	{
 		$curl = new Curl;
 		$curl->setHeader('X-MBX-APIKEY',BN_PUBKEY);
+		$curl->setOpt(CURLOPT_SSL_VERIFYPEER,false);
+		$curl->setOpt(CURLOPT_SSL_VERIFYHOST,2);
 		return $curl;
 	}
 	
@@ -98,6 +100,14 @@ class TradeService
 		$input['newOrderRespType'] = "FULL";
 		$input['quantity'] = $trade->qty;
 		
+		//get this coin balance
+		$target_symbol = str_replace("BTC","",$trade->symbol);
+		$bal = $this->redis->hGet(BOT_PREFIX.":BALANCE",$target_symbol);
+		$input2 = floor_dec($bal, $trade->lot_len);
+		echo "$target_symbol: $bal : $input2".PHP_EOL;
+		$input['quantity'] = $input2;
+		
+		
 		$result = $this->newOrder($input);
 		
 		//計算全部均價
@@ -134,7 +144,7 @@ class TradeService
 		//print_r($query);
 		$curl->post(BN_BASE_URL.'/api/v3/order',$query);
 		if($curl->error){
-			throw new Exception('Curl Error: '.__function__.' ' . $curl->errorCode . ': ' . $curl->errorMessage. "===" . json_encode($curl->response));
+			throw new Exception('Curl Error: '.__function__.' ' . $curl->errorCode . ': ' . $curl->errorMessage. "===" . json_encode($curl->response)."===".json_encode($query));
 		}
 		$this->updateAccount();
 		$result = $curl->response;
