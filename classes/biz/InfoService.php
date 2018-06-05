@@ -39,7 +39,9 @@ class InfoService
 		//$this->redis->delete(BOT_PREFIX.":LIST");
 		$lists = $this->queryList();
 		
+		$count = 0;
 		foreach($lists as $key=> $value){
+			
 			$this->redis->hset(BOT_PREFIX.":LIST",$value['symbol'],json_encode($value));
 		}
 		$this->redis->hSet(BOT_PREFIX.":BOT_INFO","list_updated",date('Y-m-d H:i:s'));

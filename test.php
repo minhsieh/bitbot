@@ -49,3 +49,10 @@ function sell_all()
 	$trade_s = new biz\BotService;
 	$trade_s->closeAll();
 }
+
+function cal_tread()
+{
+	$info = new biz\InfoService;
+	$lists = $info->queryList();
+	print_r($lists);
+}

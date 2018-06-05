@@ -69,10 +69,6 @@ class BotService
 				continue;
 			}
 			
-			//確認是否CD中
-			if($this->redis->exists(BOT_PREFIX.":CD:".$symbol)){
-				continue;
-			}
 			
 			$trade = new Trade();
 			
@@ -250,6 +246,17 @@ class BotService
 	{
 		$info = $this->info;
 		$trade_s = $this->trade;
+		
+		$account = $trade_s->queryAccount();
+		foreach($account['balances'] as $one){
+			if($one['free'] > 0 || $one['locked'] > 0){
+				$this->redis->hSet(BOT_PREFIX.":BALANCE",$one['asset'],$one['free']);
+			}else{
+				if($this->redis->hExists(BOT_PREFIX.":BALANCE" , $one['asset'])){
+					$this->redis->hDel(BOT_PREFIX.":BALANCE",$one['asset']);
+				}
+			}
+		}
 		
 		$tradings = $this->redis->hGetAll(BOT_PREFIX.":TRADING");
 		
