@@ -2,7 +2,9 @@
     "require": {
         "ext-posix": "*",
         "ext-pcntl": "*",
-        "react/event-loop": "^1.1.1"
+        "react/event-loop": "^1.1.1",
+        "vlucas/phpdotenv": "^5.2",
+        "guzzlehttp/guzzle": "^7.2"
     },
     "autoload": {
         "psr-4": {
