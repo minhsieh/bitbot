@@ -2,16 +2,25 @@
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use App\Kernel\Application;
+
+Application::getInstance()->setBasePath(dirname(__DIR__));
+Application::getInstance()->init();
+
 $daemon = new \App\Kernel\Daemon();
 
 $daemon->setBasePath(__DIR__);
-$daemon->setProcessNumber(3);
+$daemon->setProcessNumber(2);
 $daemon->setHandler(function ($pno) {
-    echo "$pno is up!!!!" . PHP_EOL;
-
-    while (true) {
-        echo "$pno tick." . PHP_EOL;
-        sleep(2);
+    switch ($pno) {
+        case 1:
+            $wsClient = new \App\Processes\WebsocketClient;
+            $wsClient->run();
+            break;
+        case 2:
+            $accWsClient = new \App\Processes\AccountWebsocketClient;
+            $accWsClient->run();
+            break;
     }
 });
 

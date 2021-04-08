@@ -1,0 +1,21 @@
+version: '2'
+
+services:
+  db:
+    image: mysql:5.7
+    volumes:
+      - ~/.docker/${APP_NAME}/data/mysql:/var/lib/mysql:cached
+    environment:
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_DATABASE}
+    ports:
+      - "33061:3306"
+
+  redis:
+    build: ./docker/redis
+    volumes:
+      - ~/.docker/${APP_NAME}/data/redis:/data:cached
+    ports:
+      - "16379:6379"

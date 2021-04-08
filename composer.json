@@ -1,10 +1,16 @@
 {
     "require": {
+        "php": "^7.3",
         "ext-posix": "*",
         "ext-pcntl": "*",
+        "ext-json": "*",
         "react/event-loop": "^1.1.1",
         "vlucas/phpdotenv": "^5.2",
-        "guzzlehttp/guzzle": "^7.2"
+        "guzzlehttp/guzzle": "^7.2",
+        "illuminate/validation": "^8.15",
+        "ratchet/pawl": "^0.3.5",
+        "illuminate/database": "^8.36",
+        "predis/predis": "^1.1"
     },
     "autoload": {
         "psr-4": {
